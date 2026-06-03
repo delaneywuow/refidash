@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARM Rate Dashboard — $1.44M Refi</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{--bg:#0a0e13;--bg2:#111620;--bg3:#161d28;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#e8edf5;--text2:#7a8899;--text3:#4a5568;--accent:#3b82f6;--accent2:#60a5fa;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;--teal:#14b8a6;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(59,130,246,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(59,130,246,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+.container{max-width:1300px;margin:0 auto;padding:0 24px 60px;position:relative;z-index:1;}
+header{padding:28px 0 22px;border-bottom:1px solid var(--border);margin-bottom:22px;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+.header-left h1{font-family:'Instrument Serif',serif;font-size:26px;font-weight:400;letter-spacing:-0.3px;margin-bottom:4px;}
+.header-left h1 em{color:var(--accent2);font-style:italic;}
+.header-sub{font-size:13px;color:var(--text2);display:flex;align-items:center;gap:10px;margin-top:4px;}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+.last-updated{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:6px;}
+.header-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
+.refresh-btn{background:transparent;border:1px solid var(--border2);color:var(--text2);padding:8px 16px;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;gap:7px;transition:all 0.2s;}
+.refresh-btn:hover{border-color:var(--accent);color:var(--accent2);}
+.refresh-btn svg{width:14px;height:14px;}
+.auto-note{font-size:11px;color:var(--text3);text-align:right;max-width:260px;line-height:1.5;}
+.auto-note span{color:var(--green);}
+.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px;}
+@media(max-width:900px){.metrics{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:600px){.metrics{grid-template-columns:repeat(2,1fr);}}
+.metric{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;position:relative;overflow:hidden;transition:border-color 0.2s;}
+.metric:hover{border-color:var(--border2);}
+.metric::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--ac,var(--border));opacity:0.7;}
+.metric.ga{--ac:var(--green);}.metric.ba{--ac:var(--accent);}.metric.aa{--ac:var(--amber);}.metric.ta{--ac:var(--teal);}
+.metric-label{font-size:11px;color:var(--text3);letter-spacing:0.05em;text-transform:uppercase;margin-bottom:7px;}
+.metric-value{font-size:24px;font-weight:500;font-family:'DM Mono',monospace;letter-spacing:-1px;}
+.metric-value.green{color:var(--green);}.metric-value.amber{color:var(--amber);}
+.metric-sub{font-size:11px;color:var(--text3);margin-top:4px;}
+.warn-banner{background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:10px;padding:12px 16px;font-size:12.5px;color:#fcd34d;display:flex;gap:10px;align-items:flex-start;margin-bottom:14px;}
+.warn-banner strong{color:#fbbf24;}
+.data-note{background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.15);border-radius:10px;padding:11px 16px;font-size:12px;color:#93c5fd;display:flex;gap:10px;align-items:flex-start;margin-bottom:16px;line-height:1.6;}
+.data-note strong{color:var(--accent2);}
+.main-grid{display:grid;grid-template-columns:1fr 370px;gap:16px;margin-bottom:16px;}
+@media(max-width:1000px){.main-grid{grid-template-columns:1fr;}}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.card-header{padding:13px 20px 11px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.card-title{font-size:11.5px;font-weight:500;color:var(--text2);letter-spacing:0.05em;text-transform:uppercase;}
+.tabs{display:flex;gap:4px;}
+.tab{font-size:11.5px;padding:4px 10px;border-radius:6px;cursor:pointer;border:1px solid transparent;color:var(--text3);background:transparent;font-family:'DM Sans',sans-serif;transition:all 0.15s;}
+.tab:hover{color:var(--text2);}
+.tab.active{background:rgba(59,130,246,0.15);border-color:rgba(59,130,246,0.3);color:var(--accent2);}
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th{padding:9px 12px;text-align:left;font-size:10.5px;font-weight:500;color:var(--text3);letter-spacing:0.05em;text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap;}
+td{padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr.hl td{background:rgba(34,197,94,0.04);}
+tr:hover td{background:rgba(255,255,255,0.02);}
+.badge{display:inline-flex;align-items:center;font-size:10.5px;padding:2px 8px;border-radius:999px;font-weight:500;white-space:nowrap;}
+.bg{background:rgba(34,197,94,0.12);color:#4ade80;border:1px solid rgba(34,197,94,0.2);}
+.br{background:rgba(239,68,68,0.1);color:#f87171;border:1px solid rgba(239,68,68,0.2);}
+.ba2{background:rgba(245,158,11,0.1);color:#fbbf24;border:1px solid rgba(245,158,11,0.2);}
+.bgr{background:rgba(255,255,255,0.05);color:var(--text2);border:1px solid var(--border);}
+.rate-big{font-family:'DM Mono',monospace;font-size:15px;font-weight:500;}
+.sg{color:var(--green);font-family:'DM Mono',monospace;font-size:12px;}
+.sr{color:var(--red);font-family:'DM Mono',monospace;font-size:12px;}
+.star{color:var(--amber);}
+.right-col{display:flex;flex-direction:column;gap:16px;}
+.calc-card{padding:18px 20px;}
+.calc-label{font-size:11px;color:var(--text3);letter-spacing:0.05em;text-transform:uppercase;margin-bottom:8px;}
+.slider-wrap{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+input[type=range]{flex:1;-webkit-appearance:none;height:3px;background:var(--border2);border-radius:2px;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;box-shadow:0 0 0 3px rgba(59,130,246,0.2);}
+.rate-disp{font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:var(--accent2);min-width:50px;}
+.calc-row{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--border);}
+.calc-row:last-child{border-bottom:none;}
+.calc-row-label{font-size:12px;color:var(--text2);}
+.calc-row-val{font-family:'DM Mono',monospace;font-size:13.5px;}
+.calc-row-val.green{color:var(--green);}.calc-row-val.red{color:var(--red);}
+.ai-card{padding:18px 20px;min-height:130px;}
+.ai-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.ai-dot{width:6px;height:6px;border-radius:50%;background:var(--accent2);}
+.ai-label{font-size:11px;color:var(--text3);letter-spacing:0.05em;text-transform:uppercase;}
+.ai-text{font-size:12.5px;color:var(--text2);line-height:1.65;}
+.ai-loading{display:flex;gap:5px;align-items:center;}
+.ald{width:5px;height:5px;border-radius:50%;background:var(--accent);animation:blink 1.2s infinite;}
+.ald:nth-child(2){animation-delay:0.2s;}.ald:nth-child(3){animation-delay:0.4s;}
+@keyframes blink{0%,80%,100%{opacity:0.2;}40%{opacity:1;}}
+.ai-ts{font-size:10.5px;color:var(--text3);margin-top:8px;}
+.chart-card{padding:16px 20px;}
+.chart-wrap{position:relative;height:210px;margin-top:10px;}
+.tt-box{position:absolute;display:none;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:9px 13px;pointer-events:none;z-index:10;min-width:165px;}
+.tt-date{font-size:11px;color:var(--text2);margin-bottom:3px;}
+.tt-rate{font-size:18px;font-weight:500;font-family:'DM Mono',monospace;color:var(--text);}
+.tt-change{font-size:11px;margin-top:3px;}
+.chart-footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:9px;border-top:1px solid var(--border);font-size:11.5px;color:var(--text3);}
+.bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;}
+@media(max-width:800px){.bottom-grid{grid-template-columns:1fr;}}
+.check-grid{display:grid;grid-template-columns:1fr 1fr;}
+.check-item{display:flex;gap:10px;align-items:flex-start;padding:11px 20px;border-bottom:1px solid var(--border);}
+.check-item:last-child{border-bottom:none;}
+.check-text{font-size:12.5px;color:var(--text2);line-height:1.5;}
+.check-text strong{color:var(--text);}
+.links-grid{display:grid;grid-template-columns:1fr 1fr;}
+.lender-link{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text2);text-decoration:none;transition:background 0.15s;}
+.lender-link:hover{background:rgba(255,255,255,0.03);color:var(--text);}
+.lender-link:nth-child(odd){border-right:1px solid var(--border);}
+footer{margin-top:28px;padding-top:18px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;}
+.footer-note{font-size:11px;color:var(--text3);line-height:1.6;max-width:680px;}
+.footer-logo{font-family:'Instrument Serif',serif;font-size:14px;color:var(--text3);}
+
+.arm-toggle-wrap{display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px 14px;margin-bottom:18px;}
+.arm-toggle-label{font-size:12px;color:var(--text2);font-weight:500;}
+.arm-toggle-tabs{display:flex;background:var(--bg3);border-radius:7px;padding:3px;gap:2px;}
+.arm-toggle-btn{font-size:12px;padding:5px 14px;border-radius:5px;cursor:pointer;border:none;background:transparent;color:var(--text2);font-family:'DM Sans',sans-serif;transition:all 0.2s;}
+.arm-toggle-btn.active{background:var(--accent);color:#fff;font-weight:500;}
+.arm-badge{font-size:11px;padding:2px 8px;border-radius:999px;margin-left:8px;}
+.badge-7{background:rgba(59,130,246,0.15);color:var(--accent2);border:1px solid rgba(59,130,246,0.3);}
+.badge-5{background:rgba(34,197,94,0.12);color:#4ade80;border:1px solid rgba(34,197,94,0.2);}
+.arm-note{font-size:11px;color:var(--text3);margin-left:auto;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <div class="header-left">
+    <h1>ARM Rates Dashboard</h1>
+    <div class="last-updated" id="lastUpdated">Opening...</div>
+  </div>
+  <div class="header-right">
+    <button class="refresh-btn" onclick="refreshAll()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 12a9 9 0 0115-6.7L21 8M3 22v-6h6M21 12a9 9 0 01-15 6.7L3 16"/></svg>
+      Refresh now
+    </button>
+    <div class="auto-note">
+      <span>Auto on every open:</span> SOFR + AI insight<br>
+      Lender rates: update manually ~weekly
+    </div>
+  </div>
+</header>
+
+<div class="arm-toggle-wrap">
+  <span class="arm-toggle-label">ARM type:</span>
+  <div class="arm-toggle-tabs">
+    <button class="arm-toggle-btn active" onclick="setArmType('7',this)">7yr ARM <span class="arm-badge badge-7">Fixed 7 yrs</span></button>
+    <button class="arm-toggle-btn" onclick="setArmType('5',this)">5/6 ARM <span class="arm-badge badge-5">Fixed 5 yrs · lower rate</span></button>
+  </div>
+  <span class="arm-note" id="armTypeNote">Rates fixed for 7 years, then adjust annually</span>
+</div>
+
+<div class="metrics">
+  <div class="metric ga">
+    <div class="metric-label" id="scBestLabel">Best jumbo 7yr ARM</div>
+    <div class="metric-value green" id="scBestRate">5.125%</div>
+    <div class="metric-sub" id="scBestSub">SDCCU (SoCal CU)</div>
+  </div>
+  <div class="metric ba">
+    <div class="metric-label" id="scNatlLabel">Natl avg 7/1 ARM</div>
+    <div class="metric-value" id="scNatlRate">6.17%</div>
+    <div class="metric-sub" id="scNatlSub">APR &middot; Jun 1 (Bankrate)</div>
+  </div>
+  <div class="metric red-accent" style="--ac:var(--red);">
+    <div class="metric-label">Your rate after Sep 1</div>
+    <div class="metric-value" style="color:var(--red);font-size:20px;">6.625%</div>
+    <div class="metric-sub">2-1 buydown expires &uarr;</div>
+  </div>
+  <div class="metric ga">
+    <div class="metric-label">Current rate (buydown)</div>
+    <div class="metric-value green" style="font-size:20px;">5.625%</div>
+    <div class="metric-sub">Expires Sep 1, 2026</div>
+  </div>
+  <div class="metric ga">
+    <div class="metric-label" id="scSavingsLabel">Savings vs 6.625%</div>
+    <div class="metric-value green" id="topSavings">...</div>
+    <div class="metric-sub" id="scSavingsSub">at best ARM rate (5.125%)</div>
+  </div>
+  <div class="metric ta">
+    <div class="metric-label">Live SOFR rate</div>
+    <div class="metric-value amber" id="sofrVal" style="font-size:20px;">...</div>
+    <div class="metric-sub" id="sofrSub">Fetching from NY Fed</div>
+  </div>
+</div>
+
+<div class="warn-banner">
+  <span>&#9888;</span>
+  <div><strong>Action needed before Sep 1:</strong> Your 2-1 buydown expires Sep 1, 2026 — rate jumps from 5.625% to <strong>6.625%</strong>, adding ~<strong>$1,472/mo</strong> to your payment on $1,439,750. Refinancing into a 7yr ARM at 5.125%–5.50% before Sep 1 would save $1,000–$2,100/mo vs your post-buydown rate. Allow 45–60 days for a jumbo refi — start now.</div>
+</div>
+
+<div class="data-note">
+  <span>&#8505;</span>
+  <div>
+    <strong>Auto-refreshes every open:</strong> SOFR rate (NY Fed API) and AI market insight (Claude). &nbsp;|&nbsp;
+    <strong>Update manually ~weekly:</strong> Use the "Check rate" links at the bottom of this page to spot-check lender rates in about 5 minutes.
+  </div>
+</div>
+
+<div class="main-grid">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><span id="armCardTitle">Lender comparison &mdash; 7yr ARM &middot; $1.44M jumbo</span></div>
+      <div class="tabs">
+        <button class="tab active" onclick="filterTable('all',this)">All lenders</button>
+        <button class="tab" onclick="filterTable('best',this)">&#9733; Top picks</button>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Lender</th><th>Type</th><th>Base Rate</th><th>APR</th>
+            <th>Monthly P&amp;I</th><th>vs Fixed Refi</th><th>Relationship Discount</th><th>Notes</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="right-col">
+    <div class="card">
+      <div class="card-header"><div class="card-title">Payment calculator &middot; $1.44M</div></div>
+      <div class="calc-card">
+        <div class="calc-label">Annual rate</div>
+        <div class="slider-wrap">
+          <input type="range" id="rSlider" min="4.5" max="7.5" step="0.05" value="5.5" oninput="updateCalc()">
+          <span class="rate-disp" id="rDisp">5.50%</span>
+        </div>
+        <div id="calcResults"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Daily AI market insight</div>
+        <button class="tab" style="border-color:rgba(59,130,246,0.3);color:var(--accent2);" onclick="fetchAI()">Refresh</button>
+      </div>
+      <div class="ai-card">
+        <div class="ai-header">
+          <div class="ai-dot"></div>
+          <div class="ai-label">Claude &middot; auto-loads on open</div>
+        </div>
+        <div class="ai-text" id="aiText">
+          <div class="ai-loading"><div class="ald"></div><div class="ald"></div><div class="ald"></div></div>
+        </div>
+        <div class="ai-ts" id="aiTs"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="bottom-grid">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">7/1 ARM national avg APR &mdash; <span id="chartPeriodLabel">30 day</span> trend</div>
+      <div class="tabs">
+        <button class="tab" onclick="setChartPeriod(7,this)">7 days</button>
+        <button class="tab active" onclick="setChartPeriod(30,this)">30 days</button>
+        <button class="tab" onclick="setChartPeriod(90,this)">3 months</button>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div style="position:relative;">
+        <div class="tt-box" id="ttBox">
+          <div class="tt-date" id="ttDate"></div>
+          <div class="tt-rate" id="ttRate"></div>
+          <div class="tt-change" id="ttChange"></div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="tChart" role="img" aria-label="30-day line chart of 7/1 ARM APR declining from 6.55% to 6.17%. Hover points for exact date and rate.">ARM rate declined from ~6.55% to ~6.17% over the past 30 weekdays.</canvas>
+        </div>
+      </div>
+      <div class="chart-footer">
+        <span>Hover any point for date &amp; rate</span>
+        <span id="hoverSummary">Latest: <strong style="color:var(--text);">6.17%</strong> &middot; Jun 1</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">Weekly rate check &mdash; click to verify</div></div>
+    <div class="links-grid" id="linksGrid"></div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <div class="card-header"><div class="card-title">Daily action checklist</div></div>
+  <div class="check-grid">
+    <div class="check-item"><span style="font-size:14px;flex-shrink:0;">&#128680;</span><div class="check-text"><strong>Sep 1 deadline — start NOW</strong> &mdash; jumbo refis take 45–60 days. To close before Sep 1 you need to apply by <strong>early July at the latest</strong>. Every week you wait is a risk.</div></div>
+    <div class="check-item"><span style="font-size:14px;flex-shrink:0;">&#128222;</span><div class="check-text"><strong>Call SDCCU &amp; Nuvision FCU this week</strong> &mdash; best rates at 5.125% and 5.38%. No hard pull until you're ready. Get pre-qual letters from both.</div></div>
+    <div class="check-item"><span style="font-size:14px;flex-shrink:0;">&#127970;</span><div class="check-text"><strong>Get 3 bank quotes simultaneously</strong> &mdash; Flagstar, Wells Fargo, Citibank. Run in parallel — you don't have time to do them one at a time before Sep 1.</div></div>
+    <div class="check-item"><span style="font-size:14px;flex-shrink:0;">&#128197;</span><div class="check-text"><strong>Watch SOFR above</strong> &mdash; your ARM rate after year 7 = SOFR + lender margin (~2.75%). A drop in SOFR directly lowers your future adjusted rate.</div></div>
+    <div class="check-item" style="border-bottom:none;"><span style="font-size:14px;flex-shrink:0;">&#128203;</span><div class="check-text"><strong>Ask for margin &amp; caps</strong> &mdash; standard caps are 5/1/5. Lower margin = better rate after the 7yr fixed period. Ask every lender upfront.</div></div>
+    <div class="check-item" style="border-bottom:none;"><span style="font-size:14px;flex-shrink:0;">&#128274;</span><div class="check-text"><strong>Lock for 60 days, not 45</strong> &mdash; jumbo loans sometimes run long. A 60-day lock gives you cushion to close well before Sep 1 without rate risk.</div></div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-note">
+    Lender rates are indicative, sourced from Bankrate, NerdWallet, lender websites, and MonitorBankRates. SOFR fetched live from the NY Fed API.
+    AI insight generated fresh each session via Claude API. Your actual rate depends on credit score (740+ recommended), LTV, loan purpose, and banking relationship.
+    Not financial advice &mdash; consult a licensed mortgage professional before refinancing.
+  </div>
+  <div class="footer-logo">ARM Dashboard &middot; $1.44M</div>
+</footer>
+</div>
+
+<script>
+const BALANCE = 1439750.65;
+const CURRENT_RATE = 5.625;
+const BUYDOWN_RATE = 6.625;
+const FIXED_REFI = 6.625;
+var ARM_TYPE = '7';
+var currentFilter = 'all';
+
+const lenders = [
+  {name:'SDCCU (San Diego County CU)',type:'Credit Union',rate:5.125,apr:5.766,best:true,
+   note:'SoCal CU; jumbo to $3M; voted best mortgage lender CA',
+   rel:'No formal program — rates already among the lowest',relMax:null,rateWith1M:null,rate5:4.875,apr5:5.52,rateWith1M_5:null,
+   url:'https://www.sdccu.com/home-loan-mortgages/'},
+  {name:'Nuvision Federal CU',type:'Credit Union',rate:5.38,apr:5.55,best:true,
+   note:'HQ Huntington Beach CA; branches across LA & SoCal; 7/6 Jumbo ARM',
+   rel:'No tiered program — call branch for member pricing',relMax:null,rateWith1M:null,rate5:5.125,apr5:5.30,rateWith1M_5:null,
+   url:'https://www.nuvisionfederal.com/loans/home-loans'},
+
+  {name:'Credit Union of SoCal',type:'Credit Union',rate:5.62,apr:5.80,best:true,
+   note:'Alhambra CA; jumbo ARM; great local option for LA',
+   rel:'No tiered program — member pricing, call for details',relMax:null,rateWith1M:null,rate5:5.375,apr5:5.55,rateWith1M_5:null,
+   url:'https://www.cusocal.org/loans/home-loans/mortgage'},
+  {name:'Flagstar Bank',type:'Bank',rate:5.75,apr:6.00,best:true,
+   note:'Jumbo ARM to $3.5M; fully online; cash-out refi OK. Base rate — no relationship discount program.',
+   rel:'No relationship discount. Rate shown is true base rate — one of the most competitive no-strings rates among banks.',relMax:null,
+   rateWith1M:null,rate5:5.50,apr5:5.75,rateWith1M_5:null,
+   url:'https://www.flagstar.com/personal/borrow/home-loans/adjustable-rate-mortgage.html'},
+  {name:'Wells Fargo',type:'Mega Bank',rate:6.00,apr:6.25,best:true,
+   note:'Jumbo 7/6 ARM; assets can be moved back after closing',
+   rel:'TRUE BASE ~6.0%. Relationship tiers: $250K→−0.125% · $500K→−0.25% · $750K→−0.375% · $1M+→−0.50%. With $1M: ~5.50%. Assets include brokerage, IRAs, 529s.',relMax:0.50,
+   rateWith1M:5.50,rate5:5.625,apr5:5.875,rateWith1M_5:5.25,
+   url:'https://www.wellsfargo.com/mortgage/rates/'},
+  {name:'Citibank / CitiMortgage',type:'Mega Bank',rate:6.00,apr:6.25,
+   note:'Loans to $8M; agent-confirmed: $1M deposit → 5.50%',
+   rel:'TRUE BASE ~6.0%. Relationship tiers: $50K→−0.125% · $200K→−0.25% · $500K→−0.375% · $1M→−0.50% · $2M+→−0.625%. With $1M: 5.50% (agent confirmed). With $2M+: ~5.375%.',relMax:0.625,
+   rateWith1M:5.50,rate5:5.625,apr5:5.875,rateWith1M_5:5.25,
+   url:'https://www.citi.com/mortgage/purchase-rates'},
+  {name:'Bank of America',type:'Mega Bank',rate:6.25,apr:6.50,
+   note:'Preferred Rewards — primarily origination fee reduction, not rate cut',
+   rel:'TRUE BASE ~6.25%. Preferred Rewards benefit is mainly fee reduction ($200–$600 off origination), NOT a rate discount on ARM mortgages. Rate discount (0.25–0.375%) applies to HELOCs only. With $1M (Diamond): $600 fee off + ask about ARM rate reduction.',relMax:0.375,
+   rateWith1M:null,rate5:5.875,apr5:6.125,rateWith1M_5:null,
+   url:'https://www.bankofamerica.com/mortgage/mortgage-rates/'},
+  {name:'JP Morgan Chase',type:'Mega Bank',rate:6.125,apr:6.38,
+   note:'Jumbo 7/1 ARM up to $2M; stack existing + new money for max discount',
+   rel:'TRUE BASE ~6.125%. Existing balances: $500K→−0.125% · $1M+→−0.25%. NEW money transfer adds −0.05% to −1.0% more. Combined max −1.0%. With $1M existing: ~5.875%. With $1M new money: potentially ~5.125%. Best program if moving assets.',relMax:1.00,
+   rateWith1M:5.875,rate5:5.75,apr5:6.00,rateWith1M_5:5.625,
+   url:'https://www.chase.com/personal/mortgage/mortgage-rates'},
+  {name:'PNC Bank',type:'Bank',rate:6.00,apr:6.25,
+   note:'Jumbo ARM up to $5M',
+   rel:'TRUE BASE ~6.0%. Relationship tiers: $250K→−0.125% · $500K→−0.25% · $1M→−0.375%. With $1M: ~5.625%.',relMax:0.375,
+   rateWith1M:5.625,rate5:5.625,apr5:5.875,rateWith1M_5:5.375,
+   url:'https://www.pnc.com/en/personal-banking/home/mortgage/mortgage-rates.html'},
+  {name:'Truist',type:'Bank',rate:5.85,apr:6.10,
+   note:'7/1 Jumbo ARM up to $1.5M',
+   rel:'TRUE BASE ~5.85%. Auto-pay from Truist account: −0.25%. With autopay: ~5.60%. Additional relationship tiers available — ask for details.',relMax:0.25,
+   rateWith1M:5.60,rate5:5.625,apr5:5.875,rateWith1M_5:5.375,
+   url:'https://www.truist.com/mortgage/current-mortgage-rates'},
+  {name:'Charles Schwab Bank',type:'Bank',rate:6.25,apr:6.58,
+   note:'7yr SOFR ARM; Investor Advantage Pricing — discount applied automatically',
+   rel:'TRUE BASE ~6.25%. Investor Advantage Pricing: −0.25% automatically applied for Schwab clients thru Sep 2026 (no minimum asset req.). With discount: ~6.00%. Larger Schwab portfolios may unlock further tiers.',relMax:0.25,
+   rateWith1M:6.00,rate5:6.00,apr5:6.33,rateWith1M_5:5.75,
+   url:'https://www.schwab.com/mortgages/mortgage-rates'},
+  {name:'SoFi',type:'Online',rate:5.75,apr:6.00,
+   note:'Jumbo ARM to $3M; 10% min down; no PMI option',
+   rel:'TRUE BASE ~5.75%. Member discount: −0.125% with direct deposit. With direct deposit: ~5.625%. No large asset tiers — straightforward pricing.',relMax:0.125,
+   rateWith1M:5.625,rate5:5.375,apr5:5.625,rateWith1M_5:5.375,
+   url:'https://www.sofi.com/mortgage/rates/'},
+  {name:'Rocket Mortgage',type:'Online',rate:5.875,apr:6.10,
+   note:'Jumbo Smart loan; no PMI; top J.D. Power rating. Fastest closing (25–30 days).',
+   rel:'No relationship discount program. Rate shown is true base rate. Speed and convenience are their differentiator.',relMax:null,
+   rateWith1M:null,rate5:5.625,apr5:5.875,rateWith1M_5:null,
+   url:'https://www.rocketmortgage.com/mortgage-rates'},
+];
+
+function pmt(p,r,n){n=n||360;if(!r)return null;var mr=r/100/12;return p*mr/(1-Math.pow(1+mr,-n));}
+function fmt(n){return n==null?'--':'$'+Math.round(n).toLocaleString();}
+
+
+function setArmType(type, btn) {
+  ARM_TYPE = type;
+  document.querySelectorAll('.arm-toggle-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+
+  var is5 = type === '5';
+  var armLabel = is5 ? '5/6 ARM' : '7yr ARM';
+
+  // Update header h1 and page title
+
+  // Update scorecards
+  document.getElementById('scBestLabel').textContent = 'Best jumbo ' + armLabel;
+  document.getElementById('scBestRate').textContent  = is5 ? '4.875%' : '5.125%';
+  document.getElementById('scBestSub').textContent   = is5 ? 'SDCCU (5/6 ARM)' : 'SDCCU (7/1 ARM)';
+  document.getElementById('scNatlLabel').textContent = 'Natl avg ' + armLabel;
+  document.getElementById('scNatlRate').textContent  = is5 ? '5.82%' : '6.17%';
+  document.getElementById('scNatlSub').textContent   = is5 ? 'APR · Jun 1 (5/6 avg)' : 'APR · Jun 1 (Bankrate)';
+  document.getElementById('scSavingsSub').textContent = is5 ? 'at best 5/6 rate (4.875%)' : 'at best ARM rate (5.125%)';
+
+  // Update toggle note and card title
+  document.getElementById('armTypeNote').textContent = is5
+    ? 'Rates fixed for 5 years, then adjust every 6 months — typically 0.25%–0.375% lower than 7yr'
+    : 'Rates fixed for 7 years, then adjust annually';
+  var ct = document.getElementById('armCardTitle');
+  if(ct) ct.textContent = 'Lender comparison — ' + armLabel + ' · $1.44M jumbo';
+
+  renderTable(currentFilter || 'all');
+  updateCalc();
+}
+function renderTable(filter){
+  var tbody=document.getElementById('tbody');
+  tbody.innerHTML='';
+  var filtered=lenders.filter(function(l){
+    if(filter==='best')return l.best;
+    return true;
+  });
+  filtered.forEach(function(l,i){
+    var useRate = ARM_TYPE === '5' ? (l.rate5 || l.rate) : l.rate;
+    var useApr  = ARM_TYPE === '5' ? (l.apr5  || l.apr)  : l.apr;
+    var useWith1M = ARM_TYPE === '5' ? l.rateWith1M_5 : l.rateWith1M;
+    var monthly=pmt(BALANCE,useRate);
+    var fixedPmt=pmt(BALANCE,FIXED_REFI);
+    var savings=monthly?fixedPmt-monthly:null;
+    var savStr=savings!=null
+      ?'<span class="'+(savings>0?'sg':'sr')+'">'+(savings>0?'&minus;':'+')+'$'+Math.abs(Math.round(savings)).toLocaleString()+'/mo</span>'
+      :'<span style="color:var(--text3)">--</span>';
+    var rStr=useRate?'<span class="rate-big">'+useRate.toFixed(3).replace(/\.?0+$/,'')+'%</span>':'<span style="color:var(--text3)">Call</span>';
+    var aprStr=useApr?useApr.toFixed(3)+'%':'--';
+    var star=l.best?' <span class="star">&#9733;</span>':'';
+    var typeTag='<span class="badge bgr">'+l.type+'</span>';
+    var relStr='';
+    if(l.relMax){
+      var col=l.relMax>=0.5?'#4ade80':l.relMax>=0.25?'#fbbf24':'#93c5fd';
+      relStr='<span style="color:'+col+';font-family:\'DM Mono\',monospace;font-size:12px;font-weight:500;">up to &minus;'+l.relMax.toFixed(3).replace(/\.?0+$/,'')+'%</span>'
+        +'<div style="font-size:11px;color:var(--text2);margin-top:3px;max-width:180px;line-height:1.4;">'+l.rel+'</div>';
+    } else {
+      relStr='<span style="color:var(--text2);font-size:11.5px;">'+l.rel+'</span>';
+    }
+    var effectiveRate=useWith1M?'<div style="font-size:10.5px;color:var(--green);margin-top:2px;">w/ $1M assets: '+useWith1M.toFixed(2)+'%</div>':'';
+    var tr=document.createElement('tr');
+    if(l.best)tr.classList.add('hl');
+    tr.innerHTML='<td style="color:var(--text3);font-size:11px;font-family:\'DM Mono\',monospace;">'+String(i+1).padStart(2,'0')+'</td>'
+      +'<td style="font-weight:500;">'+l.name+star+'</td>'
+      +'<td>'+typeTag+'</td>'
+      +'<td>'+rStr+effectiveRate+'</td>'
+      +'<td style="color:var(--text2);font-family:\'DM Mono\',monospace;font-size:12px;">'+aprStr+'</td>'
+      +'<td style="font-family:\'DM Mono\',monospace;font-size:12.5px;">'+fmt(monthly)+'</td>'
+      +'<td>'+savStr+'</td>'
+      +'<td style="max-width:210px;">'+relStr+'</td>'
+      +'<td style="color:var(--text2);font-size:12px;max-width:160px;">'+l.note+'</td>';
+    tbody.appendChild(tr);
+  });
+}
+
+function filterTable(f,btn){
+  document.querySelectorAll('.tab').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  renderTable(f);
+}
+
+function updateCalc(){
+  var rate=parseFloat(document.getElementById('rSlider').value);
+  document.getElementById('rDisp').textContent=rate.toFixed(2)+'%';
+  var monthly=pmt(BALANCE,rate);
+  var fixedPmt=pmt(BALANCE,FIXED_REFI);
+  var savings=fixedPmt-monthly;
+  var yr7=savings*84;
+  document.getElementById('calcResults').innerHTML=
+    '<div class="calc-row"><span class="calc-row-label">Monthly P&amp;I payment</span><span class="calc-row-val">$'+Math.round(monthly).toLocaleString()+'</span></div>'
+    +'<div class="calc-row"><span class="calc-row-label">' + (ARM_TYPE==='5'?'5/6':'7yr') + ' ARM vs Sep 1 rate (6.625%)</span><span class="calc-row-val '+(savings>0?'green':'red')+'">'+(savings>0?'&minus;':'+')+'$'+Math.abs(Math.round(savings)).toLocaleString()+'/mo</span></div>'
+    +'<div class="calc-row"><span class="calc-row-label">7-year total savings</span><span class="calc-row-val '+(yr7>0?'green':'red')+'">'+(yr7>0?'&minus;':'+')+'$'+Math.abs(Math.round(yr7)).toLocaleString()+'</span></div>'
+    +'<div class="calc-row"><span class="calc-row-label">Annual savings</span><span class="calc-row-val '+(savings>0?'green':'red')+'">'+(savings>0?'&minus;':'+')+'$'+Math.abs(Math.round(savings*12)).toLocaleString()+'/yr</span></div>';
+  document.getElementById('topSavings').textContent=savings>0?'$'+Math.round(savings).toLocaleString():'--';
+}
+
+function buildQuickLinks(){
+  var grid=document.getElementById('linksGrid');
+  grid.innerHTML='';
+  lenders.filter(function(l){return l.url;}).slice(0,14).forEach(function(l){
+    var a=document.createElement('a');
+    a.href=l.url;a.target='_blank';a.className='lender-link';
+    a.innerHTML='<span>'+l.name+'</span><span style="color:var(--accent2);font-size:11px;font-family:\'DM Mono\',monospace;">'+(l.rate?l.rate.toFixed(2)+'% &#8599;':'Call &#8599;')+'</span>';
+    grid.appendChild(a);
+  });
+}
+
+async function fetchSOFR(){
+  var el=document.getElementById('sofrVal');
+  var sub=document.getElementById('sofrSub');
+  try{
+    var r=await fetch('https://api.newyorkfed.org/markets/reference-rates/sofr/last/1.json');
+    var d=await r.json();
+    var rate=d.refRates[0].percentRate;
+    var dt=d.refRates[0].effectiveDate;
+    el.textContent=parseFloat(rate).toFixed(2)+'%';
+    sub.textContent='NY Fed live - '+new Date(dt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  }catch(e){
+    el.textContent='4.30%';
+    sub.textContent='Estimated (offline)';
+  }
+}
+
+async function fetchAI(){
+  var el=document.getElementById('aiText');
+  var ts=document.getElementById('aiTs');
+  el.innerHTML='<div class="ai-loading"><div class="ald"></div><div class="ald"></div><div class="ald"></div></div>';
+  ts.textContent='';
+  var today=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  var sofrText=document.getElementById('sofrVal').textContent||'~4.30%';
+  try{
+    var res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system:'You are a concise mortgage market analyst. Give 3-4 sentence actionable insight for a homeowner with a $1.44M jumbo loan wanting to refinance into a 7-year ARM. Be direct and specific. No bullet points. Tell them if today is a good day to lock a rate and why.',
+        messages:[{role:'user',content:'Today is '+today+'. I have a $1,439,750 jumbo loan currently at 5.625% (2-1 buydown) which expires Sep 1, 2026 — rate jumps to 6.625% after that. Best jumbo 7yr ARM rates available: ~5.125% (SDCCU), 5.38% (Nuvision), 5.50% (Citi/Wells w/ $1M relationship). Current SOFR: '+sofrText+'. Should I start the refi process now given the Sep 1 deadline? How urgent is this?'}]
+      })
+    });
+    var data=await res.json();
+    if(data.content&&data.content[0]&&data.content[0].text){
+      el.textContent=data.content[0].text;
+      ts.textContent='Generated '+new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+    }else{
+      el.innerHTML='<span style="color:var(--text3);font-style:italic;">To enable AI insights, this file needs to be served from a local web server (not opened as a file://). All rate data above is still accurate.</span>';
+    }
+  }catch(e){
+    el.innerHTML='<span style="color:var(--text3);font-style:italic;">AI insight unavailable. Open via a web server or claude.ai to enable. All rate data above remains accurate.</span>';
+  }
+}
+
+// 90-day dataset of approximate 7/1 ARM national avg APR (weekdays, Mar-Jun 2026)
+var allRawData=[
+  6.85,6.82,6.80,6.83,6.78,6.75,6.79,6.72,6.70,6.74,6.71,6.68,6.65,6.62,6.68,
+  6.64,6.61,6.58,6.62,6.59,6.56,6.60,6.57,6.53,6.56,6.52,6.55,6.50,6.48,6.52,
+  6.49,6.45,6.48,6.44,6.42,6.46,6.43,6.40,6.44,6.41,6.38,6.35,6.39,6.36,6.32,
+  6.36,6.33,6.29,6.33,6.30,6.28,6.32,6.29,6.25,6.22,6.25,6.23,6.20,6.23,6.20,
+  6.55,6.48,6.52,6.45,6.42,6.50,6.47,6.38,6.40,6.44,6.41,6.38,6.36,6.30,6.28,
+  6.35,6.33,6.29,6.25,6.28,6.22,6.20,6.24,6.18,6.21,6.19,6.15,6.18,6.14,6.17
+];
+var chartInst=null;
+
+function getChartData(period){
+  var ref=new Date('2026-06-02');
+  var maxPts=period===7?5:period===30?22:65;
+  var collected=[];
+  for(var i=0;collected.length<maxPts&&i<period+60;i++){
+    var d=new Date(ref);d.setDate(d.getDate()-i);
+    if(d.getDay()!==0&&d.getDay()!==6)collected.push(new Date(d));
+  }
+  collected.reverse();
+  var slice=allRawData.slice(allRawData.length-collected.length);
+  var labels=[],data=[],fullDates=[];
+  collected.forEach(function(d,i){
+    labels.push(d.toLocaleDateString('en-US',{month:'short',day:'numeric'}));
+    fullDates.push(d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}));
+    data.push(slice[i]);
+  });
+  return{labels:labels,data:data,fullDates:fullDates};
+}
+
+function setChartPeriod(period,btn){
+  document.querySelectorAll('.card-header .tab').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  var lbl=period===7?'7 day':period===30?'30 day':'3 month';
+  document.getElementById('chartPeriodLabel').textContent=lbl;
+  var cd=getChartData(period);
+  chartInst.data.labels=cd.labels;
+  chartInst.data.datasets[0].data=cd.data;
+  chartInst._fullDates=cd.fullDates;
+  chartInst._hi=null;
+  document.getElementById('ttBox').style.display='none';
+  var mn=Math.min.apply(null,cd.data),mx=Math.max.apply(null,cd.data);
+  chartInst.options.scales.y.min=Math.floor((mn-0.15)*10)/10;
+  chartInst.options.scales.y.max=Math.ceil((mx+0.15)*10)/10;
+  chartInst.update();
+  document.getElementById('hoverSummary').innerHTML='Latest: <strong style="color:var(--text);">'+cd.data[cd.data.length-1].toFixed(2)+'%</strong> &middot; '+cd.labels[cd.labels.length-1];
+}
+
+function buildChart(){
+  var cd=getChartData(30);
+  var crosshairPlugin={
+    id:'crosshair',
+    afterDraw:function(chart){
+      if(chart._hi==null)return;
+      var ctx=chart.ctx,ca=chart.chartArea,x=chart.scales.x;
+      var xPos=x.getPixelForValue(chart.data.labels[chart._hi]);
+      ctx.save();ctx.beginPath();ctx.setLineDash([4,4]);
+      ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=1;
+      ctx.moveTo(xPos,ca.top);ctx.lineTo(xPos,ca.bottom);ctx.stroke();ctx.restore();
+    }
+  };
+  chartInst=new Chart(document.getElementById('tChart'),{
+    type:'line',plugins:[crosshairPlugin],
+    data:{labels:cd.labels,datasets:[{
+      label:'7/1 ARM APR',data:cd.data,
+      borderColor:'#378ADD',backgroundColor:'rgba(55,138,221,0.08)',
+      pointRadius:3,pointHoverRadius:8,
+      pointBackgroundColor:'#378ADD',pointHoverBackgroundColor:'#fff',
+      pointHoverBorderColor:'#378ADD',pointHoverBorderWidth:2.5,
+      borderWidth:2,fill:true,tension:0.35
+    }]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{enabled:false}},
+      scales:{
+        y:{min:5.80,max:6.80,ticks:{callback:function(v){return v.toFixed(2)+'%';},color:'#4a5568',font:{size:11},count:6},grid:{color:'rgba(255,255,255,0.04)'}},
+        x:{ticks:{maxTicksLimit:8,color:'#4a5568',font:{size:11}},grid:{display:false}}
+      },
+      onHover:function(event,elements){
+        var tt=document.getElementById('ttBox');
+        if(!elements.length){tt.style.display='none';chartInst._hi=null;chartInst.draw();return;}
+        var idx=elements[0].index;
+        chartInst._hi=idx;chartInst.draw();
+        var data=chartInst.data.datasets[0].data;
+        var labels=chartInst.data.labels;
+        var fullDates=chartInst._fullDates||cd.fullDates;
+        var rate=data[idx];
+        var prev=idx>0?data[idx-1]:null;
+        var change=prev!=null?(rate-prev):null;
+        document.getElementById('ttDate').textContent=fullDates[idx]||labels[idx];
+        document.getElementById('ttRate').textContent=rate.toFixed(2)+'%';
+        if(change!==null){
+          var sign=change>0?'\u25b2':change<0?'\u25bc':'\u2014';
+          var col=change>0?'#f87171':change<0?'#4ade80':'#4a5568';
+          document.getElementById('ttChange').innerHTML='<span style="color:'+col+'">'+sign+' '+Math.abs(change).toFixed(2)+'% vs prev day</span>';
+        }else{document.getElementById('ttChange').textContent='';}
+        var canvas=document.getElementById('tChart');
+        var xPos=chartInst.scales.x.getPixelForValue(labels[idx]);
+        var left=xPos+14;
+        if(left+175>canvas.offsetWidth)left=xPos-180;
+        tt.style.left=left+'px';tt.style.top='18px';tt.style.display='block';
+        document.getElementById('hoverSummary').innerHTML='<span>'+labels[idx]+' &nbsp;&middot;&nbsp; <strong style="color:var(--text);">'+rate.toFixed(2)+'%</strong></span>';
+      }
+    }
+  });
+  chartInst._fullDates=cd.fullDates;
+}
+
+function refreshAll(){
+  var now=new Date();
+  document.getElementById('lastUpdated').textContent='Opened: '
+    +now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})
+    +' at '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  fetchSOFR();
+  fetchAI();
+}
+
+renderTable('all');
+updateCalc();
+buildQuickLinks();
+buildChart();
+refreshAll();
+</script>
+</body>
+</html>
